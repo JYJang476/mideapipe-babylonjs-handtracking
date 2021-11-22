@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta charset="utf-8">
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://preview.babylonjs.com/babylon.js"></script>
+    <script src="https://preview.babylonjs.com/gui/babylon.gui.js"></script>
+    <!-- Link to the last version of BabylonJS loaders to enable loading filetypes such as .gltf -->
+    <script src="https://preview.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+    <title>Document</title>
+</head>
+
+<body>
+    <div class="container">
+        <video class="input_video" style="display:none"></video>
+        <canvas id="output_canvas" style="width: 100%;height: 100%"></canvas>
+    </div>
+    <script>
+        function changeRadianToDegree(degreeValue) {
+            return degreeValue * (Math.PI / 180);
+        }
+        let scene;
+        let leftHands = new Array();
+        window.addEventListener('DOMContentLoaded', function() {
+            const videoElement = document.getElementsByClassName('input_video')[0];
+            const canvasElement = document.getElementById('output_canvas');
+            var handMesh = undefined;
+            // const canvasCtx = canvasElement.getContext('2d');
+            var engine = new BABYLON.Engine(canvasElement, true);
+
+            var createScene = function () {
+                // Create scene
+                var scene = new BABYLON.Scene(engine);
+
+                // BABYLON.SceneLoader.ImportMesh("", "/", "hand.glb", scene, (meshes, particles, bones) => {
+                //     scene.createDefaultCamera(true, true, true);
+                //     handMesh = meshes[1];
+                //     // handMesh.rotationQuaternion = undefined;
+                //     handMesh.rotation.y = changeRadianToDegree(30);
+                //     console.dir(handMesh);
+                //
+                // });
+                for(let i=1; i <= 21; i++){
+                    let hand = BABYLON.CreateBox("hand" + i, {size: 0.05}, scene);
+                    leftHands.push(hand);
+                }
+
+                var camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 4, 3, new BABYLON.Vector3(0, 0, 1), scene);
+                return scene;
+            }
+
+            function onResults(results) {
+                // console.log(scene);
+                // canvasCtx.save();
+                // canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                // canvasCtx.drawImage(
+                //     results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+                if (results.multiHandLandmarks.length > 0) {
+                    let landmarks = results.multiHandLandmarks[0];
+                    for(let i=0; i < 21; i++) {
+                        leftHands[i].position = new BABYLON.Vector3(landmarks[i].x, landmarks[i].y * -1, landmarks[i].z);
+                    }
+                    // drawLandmarks(canvasCtx, landmarks, {color: '#FF0000', lineWidth: 2});
+                    // console.log(landmarks);
+                }
+                // canvasCtx.restore();
+            }
+
+            scene = createScene();
+            engine.runRenderLoop(function () {
+                scene.render();
+            });
+
+            const hands = new Hands({locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                }});
+            hands.setOptions({
+                maxNumHands: 2,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+            hands.onResults(onResults);
+
+            const camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    await hands.send({image: videoElement});
+                },
+                width: 1280,
+                height: 720
+            });
+            camera.start();
+        });
+    </script>
+
+</body>
+
+</html>
